@@ -36,10 +36,6 @@ class Net(nn.Module):
         self.ouput = nn.Linear(500 + 250, 1)
 
     def forward(self, inputs):
-        """
-        No sigmoid in forward because we are going to use BCEWithLogitsLoss
-        Which applies sigmoid for us when calculating a loss
-        """
         x, meta = inputs
         cnn_features = self.arch(x)
         meta_features = self.meta(meta)
@@ -49,7 +45,7 @@ class Net(nn.Module):
 
 
 @app.post("/")
-async def create_upload_file(file: UploadFile, age: int = 49, sex: int = 1,):
+async def create_upload_file(file: UploadFile, age: int = 49, sex: int = 1, site: str = "site_nan"):
     device = torch.device('cpu')
     pred_transform = transforms.Compose([
         transforms.Resize(size=(256, 256)),
@@ -63,11 +59,8 @@ async def create_upload_file(file: UploadFile, age: int = 49, sex: int = 1,):
     x = Image.fromarray(np.array(x)[:, :, ::-1])
     x = pred_transform(x)
     x = x.unsqueeze(0)
-    # 'male': 1, 'female': 0}
-    # ['sex', 'age_approx', 'site_head/neck', 'site_lower extremity', 'site_oral/genital', 'site_palms/soles', 'site_torso', 'site_upper extremity', 'site_nan']
-    meta = np.array([[sex, float(age/90), 0.0000, 0.0000, 0.0000, 0.0000,
-                    0.0000, 0.0000, 1.0000]], dtype=np.float32)
-
+    # 'male': 1, 'female': 0
+    meta = np.array([[sex, float(age/90), *[1 if site.lower() == s else 0 for s in ['site_head/neck', 'site_lower extremity', 'site_oral/genital', 'site_palms/soles', 'site_torso', 'site_upper extremity', 'site_nan']]]], dtype=np.float32)
     x = torch.tensor(x, device=device, dtype=torch.float32)
     meta = torch.tensor(meta, device=device, dtype=torch.float32)
     preds = []
